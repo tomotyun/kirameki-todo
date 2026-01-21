@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Kirameki">
+    <meta name="theme-color" content="#1a3318">
+    <title>✨ Kirameki TODO</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --char1-accent: #c4a747;
+            --char1-bg-start: #1a3318;
+            --char1-bg-end: #2d5a27;
+            --char2-accent: #e87a41;
+            --char2-bg-start: #0f4444;
+            --char2-bg-end: #1a6b6b;
+            --char3-accent: #a855f7;
+            --char3-bg-start: #2d1b4e;
+            --char3-bg-end: #4c1d95;
+            --current-accent: var(--char1-accent);
+            --current-bg-start: var(--char1-bg-start);
+            --current-bg-end: var(--char1-bg-end);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+
+        body {
+            font-family: 'Zen Maru Gothic', sans-serif;
+            background: linear-gradient(135deg, var(--current-bg-start) 0%, var(--current-bg-end) 100%);
+            color: #fff;
+            transition: background 0.5s ease;
+        }
+
+        body.char1 { --current-accent: var(--char1-accent); --current-bg-start: var(--char1-bg-start); --current-bg-end: var(--char1-bg-end); }
+        body.char2 { --current-accent: var(--char2-accent); --current-bg-start: var(--char2-bg-start); --current-bg-end: var(--char2-bg-end); }
+        body.char3 { --current-accent: var(--char3-accent); --current-bg-start: var(--char3-bg-start); --current-bg-end: var(--char3-bg-end); }
+
+        .app-container { height: 100%; display: flex; flex-direction: column; position: relative; padding-top: env(safe-area-inset-top); }
+
+        header {
+            position: absolute; top: env(safe-area-inset-top); left: 0; right: 0;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 16px; z-index: 100;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 100%);
+        }
+
+        .app-title { font-family: 'Poppins', sans-serif; font-size: 1.3rem; font-weight: 700; text-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+
+        .points-display {
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(10px);
+            padding: 6px 14px; border-radius: 20px;
+            font-weight: 700; font-size: 1rem; color: var(--current-accent);
+            border: 2px solid var(--current-accent);
+        }
+
+        .character-area {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            display: flex; align-items: flex-start; justify-content: center;
+            overflow: hidden; padding-top: 50px;
+        }
+
+        .character-image {
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+            transition: transform 0.3s ease;
+        }
+        .character-image.complete { animation: float 2s ease-in-out infinite; }
+        .character-image.hidden { display: none; }
+
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+        .character-fallback {
+            width: 80%; max-width: 320px; aspect-ratio: 3/4;
+            background: rgba(255,255,255,0.1); border-radius: 20px;
+            display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 15px;
+            font-size: 1.3rem; color: rgba(255,255,255,0.8);
+            border: 2px dashed rgba(255,255,255,0.3); cursor: pointer;
+            margin-top: 60px;
+        }
+        .character-fallback.hidden { display: none; }
+        .character-fallback .emoji { font-size: 6rem; }
+        .character-fallback .tap-hint { font-size: 0.9rem; opacity: 0.6; }
+
+        .speech-bubble {
+            position: absolute; bottom: 280px; left: 50%; transform: translateX(-50%);
+            background: rgba(255,255,255,0.95); color: #333;
+            padding: 14px 20px; border-radius: 20px; max-width: 90%;
+            font-size: 1rem; line-height: 1.5;
+            box-shadow: 0 4px 25px rgba(0,0,0,0.3);
+            opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s; z-index: 150;
+        }
+        .speech-bubble.show { opacity: 1; visibility: visible; }
+
+        .settings-btn {
+            position: absolute; top: calc(env(safe-area-inset-top) + 60px); left: 16px;
+            width: 44px; height: 44px; border-radius: 50%;
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: #fff; font-size: 1.3rem; cursor: pointer; z-index: 100;
+        }
+
+        .char-indicator {
+            position: absolute; top: calc(env(safe-area-inset-top) + 70px); left: 50%; transform: translateX(-50%);
+            display: flex; gap: 8px; z-index: 100;
+        }
+        .char-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: rgba(255,255,255,0.3); transition: all 0.3s;
+        }
+        .char-dot.active { background: var(--current-accent); transform: scale(1.3); }
+
+        .swipe-hint {
+            position: absolute; top: calc(env(safe-area-inset-top) + 110px); left: 50%; transform: translateX(-50%);
+            font-size: 0.75rem; opacity: 0.5; z-index: 100;
+        }
+
+        .bottom-panel {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 60%, transparent 100%);
+            padding: 80px 16px calc(24px + env(safe-area-inset-bottom)); z-index: 100;
+        }
+
+        .action-buttons { display: flex; gap: 6px; margin-bottom: 12px; }
+
+        .action-btn {
+            flex: 1; background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2); color: #fff;
+            padding: 10px 4px; border-radius: 12px;
+            font-family: 'Zen Maru Gothic', sans-serif; font-size: 0.75rem; font-weight: 500; cursor: pointer;
+        }
+        .action-btn.primary { background: var(--current-accent); border-color: var(--current-accent); color: #000; font-weight: 700; }
+
+        .task-preview { max-height: 180px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+        .task-preview-item {
+            background: rgba(255,255,255,0.12); border-radius: 12px;
+            padding: 12px 14px; margin-bottom: 8px;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .task-preview-item .task-content { flex: 1; min-width: 0; }
+        .task-preview-item .task-title { font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .task-preview-item .task-meta { font-size: 0.75rem; opacity: 0.7; display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+
+        .bonus-badge { background: linear-gradient(135deg, #ffd700, #ff8c00); color: #000; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem; font-weight: 700; }
+
+        .complete-btn {
+            background: var(--current-accent); color: #000; border: none;
+            padding: 8px 14px; border-radius: 16px;
+            font-family: 'Zen Maru Gothic', sans-serif; font-size: 0.8rem; font-weight: 700; cursor: pointer; white-space: nowrap;
+        }
+
+        .empty-message { text-align: center; padding: 20px; opacity: 0.5; font-size: 0.9rem; }
+
+        .full-list-view {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            z-index: 300; display: none; flex-direction: column;
+        }
+        .full-list-view.show { display: flex; }
+
+        .full-list-header { display: flex; align-items: center; padding: calc(16px + env(safe-area-inset-top)) 16px 16px; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .back-btn { background: rgba(255,255,255,0.15); border: none; color: #fff; padding: 10px 18px; border-radius: 10px; font-family: 'Zen Maru Gothic', sans-serif; font-size: 0.95rem; cursor: pointer; }
+        .full-list-title { font-size: 1.1rem; font-weight: 700; }
+        .full-list-content { flex: 1; overflow-y: auto; padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom)); -webkit-overflow-scrolling: touch; }
+
+        .char-section { margin-bottom: 24px; }
+        .char-section-title { font-size: 1rem; font-weight: 700; margin-bottom: 12px; padding: 10px 14px; border-radius: 12px; display: flex; align-items: center; gap: 8px; }
+        .char-section-title.char1 { background: rgba(45, 90, 39, 0.5); border-left: 4px solid var(--char1-accent); }
+        .char-section-title.char2 { background: rgba(26, 107, 107, 0.5); border-left: 4px solid var(--char2-accent); }
+        .char-section-title.char3 { background: rgba(76, 29, 149, 0.5); border-left: 4px solid var(--char3-accent); }
+
+        .task-item { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px; }
+        .task-item .task-content { flex: 1; }
+        .task-item .task-title { font-size: 1rem; margin-bottom: 4px; }
+        .task-item .task-meta { font-size: 0.8rem; opacity: 0.7; display: flex; align-items: center; gap: 8px; }
+        .task-item .complete-btn { padding: 8px 16px; font-size: 0.85rem; }
+        .task-item .complete-btn.char1-btn { background: var(--char1-accent); }
+        .task-item .complete-btn.char2-btn { background: var(--char2-accent); }
+        .task-item .complete-btn.char3-btn { background: var(--char3-accent); }
+
+        .history-item { background: rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .history-points { font-weight: 700; display: flex; align-items: center; gap: 4px; }
+        .history-points.char1 { color: var(--char1-accent); }
+        .history-points.char2 { color: var(--char2-accent); }
+        .history-points.char3 { color: var(--char3-accent); }
+        .history-bonus { color: #ffd700; }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(5px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 500; opacity: 0; visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s; padding: 20px;
+        }
+        .modal-overlay.show { opacity: 1; visibility: visible; }
+
+        .modal {
+            background: linear-gradient(135deg, #2a2a4a 0%, #1a1a2e 100%);
+            border-radius: 20px; padding: 24px; width: 100%; max-width: 360px;
+            transform: scale(0.9); transition: transform 0.3s;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            max-height: 85vh; overflow-y: auto;
+        }
+        .modal-overlay.show .modal { transform: scale(1); }
+
+        .modal-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 16px; text-align: center; }
+        .modal-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+        .modal-tab { flex: 1; background: rgba(255,255,255,0.1); border: none; color: #fff; padding: 10px 6px; border-radius: 10px; font-family: 'Zen Maru Gothic', sans-serif; font-size: 0.75rem; cursor: pointer; }
+        .modal-tab.active { background: var(--current-accent); color: #000; font-weight: 700; }
+
+        .modal-input {
+            width: 100%; background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2); color: #fff;
+            padding: 12px; border-radius: 12px;
+            font-family: 'Zen Maru Gothic', sans-serif; font-size: 1rem; margin-bottom: 12px;
+        }
+        .modal-input::placeholder { color: rgba(255,255,255,0.4); }
+        .modal-input:focus { outline: none; border-color: var(--current-accent); }
+
+        .modal-buttons { display: flex; gap: 10px; }
+        .modal-btn { flex: 1; padding: 12px; border-radius: 12px; font-family: 'Zen Maru Gothic', sans-serif; font-size: 1rem; font-weight: 700; cursor: pointer; border: none; }
+        .modal-btn.cancel { background: rgba(255,255,255,0.2); color: #fff; }
+        .modal-btn.submit { background: var(--current-accent); color: #000; }
+
+        .points-hint { text-align: center; font-size: 0.8rem; opacity: 0.7; margin-bottom: 10px; }
+
+        .settings-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+        .settings-tab { flex: 1; background: rgba(255,255,255,0.1); border: none; color: #fff; padding: 10px 4px; border-radius: 10px; font-family: 'Zen Maru Gothic', sans-serif; font-size: 0.75rem; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .settings-tab.active { background: var(--current-accent); color: #000; font-weight: 700; }
+
+        .settings-content { display: none; }
+        .settings-content.active { display: block; }
+
+        .char-edit-card { background: rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; }
+        .char-edit-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .char-edit-emoji { font-size: 1.5rem; flex-shrink: 0; }
+        .char-edit-name-input { 
+            flex: 1; min-width: 0;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; 
+            padding: 10px 12px; border-radius: 10px; font-family: 'Zen Maru Gothic', sans-serif; font-size: 0.95rem;
+        }
+        .char-edit-name-input:focus { outline: none; border-color: var(--current-accent); }
+
+        .image-setup-item { background: rgba(255,255,255,0.08); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+        .image-setup-item label { flex: 1; font-size: 0.85rem; }
+        .image-setup-item .status { font-size: 1.1rem; min-width: 24px; text-align: center; }
+
+        .file-input-wrapper { position: relative; overflow: hidden; flex-shrink: 0; }
+        .file-input-wrapper input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+        .file-input-btn { background: var(--current-accent); color: #000; padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; display: inline-block; }
+
+        .char-edit-messages { margin-top: 12px; }
+        .char-edit-messages label { display: block; margin-bottom: 4px; font-size: 0.8rem; opacity: 0.8; }
+        .char-edit-messages textarea { 
+            width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #fff; 
+            padding: 8px; border-radius: 8px; font-family: 'Zen Maru Gothic', sans-serif; font-size: 0.8rem; 
+            min-height: 50px; resize: vertical; margin-bottom: 8px;
+        }
+        .char-edit-messages textarea:focus { outline: none; border-color: var(--current-accent); }
+
+        .data-section { margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.15); }
+        .data-section-title { font-size: 0.9rem; font-weight: 700; margin-bottom: 12px; text-align: center; opacity: 0.8; }
+        .data-buttons { display: flex; gap: 10px; }
+        .data-btn { 
+            flex: 1; padding: 10px 8px; border-radius: 10px; 
+            font-family: 'Zen Maru Gothic', sans-serif; font-size: 0.8rem; font-weight: 700; 
+            cursor: pointer; border: none; text-align: center;
+        }
+        .data-btn.export { background: #4a9; color: #fff; }
+        .data-btn.import { background: #59f; color: #fff; position: relative; overflow: hidden; }
+        .data-btn.import input { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+        .data-btn.reset { background: #e55; color: #fff; }
+
+        .effect-container { position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 1000; }
+
+        .point-popup {
+            position: fixed; top: 35%; left: 50%; transform: translate(-50%, -50%);
+            font-family: 'Poppins', sans-serif; font-size: 4rem; font-weight: 700;
+            color: var(--current-accent); text-shadow: 0 4px 30px rgba(0,0,0,0.6);
+            animation: pointPop 1.5s ease-out forwards;
+        }
+
+        @keyframes pointPop {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+            20% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+            40% { transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -70%) scale(1); }
+        }
+
+        .sparkle { position: fixed; font-size: 2.5rem; animation: sparkleAnim 1.5s ease-out forwards; }
+
+        @keyframes sparkleAnim {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(0); }
+            50% { opacity: 1; transform: translate(var(--tx), var(--ty)) scale(1); }
+            100% { opacity: 0; transform: translate(calc(var(--tx) * 1.5), calc(var(--ty) * 1.5)) scale(0.5); }
+        }
+
+        .loading-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(135deg, #1a3318 0%, #2d5a27 100%);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9999; flex-direction: column; gap: 20px;
+        }
+        .loading-overlay.hidden { display: none; }
+        .loading-text { font-size: 1.2rem; opacity: 0.8; }
+        .loading-spinner { font-size: 3rem; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="char1">
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">✨</div>
+        <div class="loading-text">読み込み中...</div>
+    </div>
+
+    <div class="app-container">
+        <header>
+            <h1 class="app-title">✨ Kirameki</h1>
+            <div class="points-display" id="pointsDisplay">0 🌟</div>
+        </header>
+
+        <button class="settings-btn" id="settingsBtn">⚙️</button>
+
+        <div class="char-indicator" id="charIndicator">
+            <div class="char-dot active" data-char="char1"></div>
+            <div class="char-dot" data-char="char2"></div>
+            <div class="char-dot" data-char="char3"></div>
+        </div>
+        <div class="swipe-hint">← スワイプで切替 →</div>
+
+        <div class="character-area" id="characterArea">
+            <img class="character-image hidden" id="characterImage" alt="キャラクター">
+            <div class="character-fallback" id="characterFallback">
+                <span class="emoji" id="fallbackEmoji">🌿</span>
+                <span id="fallbackName">キャラ1</span>
+                <span class="tap-hint">⚙️で画像設定</span>
+            </div>
+        </div>
+
+        <div class="speech-bubble" id="speechBubble"></div>
+
+        <div class="bottom-panel">
+            <div class="action-buttons">
+                <button class="action-btn primary" id="addTodoBtn">📝 TODO</button>
+                <button class="action-btn primary" id="addMiniBtn">⭐ ミニ</button>
+                <button class="action-btn primary" id="addChallengeBtn">🎯 チャレンジ</button>
+                <button class="action-btn" id="viewTodosBtn">📋</button>
+                <button class="action-btn" id="historyBtn">📚</button>
+            </div>
+            <div class="task-preview" id="taskPreview"></div>
+        </div>
+    </div>
+
+    <div class="full-list-view" id="fullListView">
+        <div class="full-list-header">
+            <button class="back-btn" id="closeListBtn">← 戻る</button>
+            <span class="full-list-title" id="fullListTitle">TODO一覧</span>
+        </div>
+        <div class="full-list-content" id="fullListContent"></div>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <h3 class="modal-title">タスク追加</h3>
+            <div class="modal-tabs">
+                <button class="modal-tab active" id="tabTodo">📝 TODO</button>
+                <button class="modal-tab" id="tabMini">⭐ ミニ</button>
+                <button class="modal-tab" id="tabChallenge">🎯 チャレンジ</button>
+            </div>
+            <div class="points-hint" id="pointsHint">登録で +10🌟 獲得！</div>
+            <input type="text" class="modal-input" id="taskInput" placeholder="タスクを入力...">
+            <div class="modal-buttons">
+                <button class="modal-btn cancel" id="cancelBtn">キャンセル</button>
+                <button class="modal-btn submit" id="submitBtn">登録</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="settingsOverlay">
+        <div class="modal" style="max-width: 380px;">
+            <h3 class="modal-title">⚙️ 設定</h3>
+            
+            <div class="settings-tabs" id="settingsTabs">
+                <button class="settings-tab active" data-char="char1" id="tabChar1">キャラ1</button>
+                <button class="settings-tab" data-char="char2" id="tabChar2">キャラ2</button>
+                <button class="settings-tab" data-char="char3" id="tabChar3">キャラ3</button>
+                <button class="settings-tab" data-char="data" id="tabData">💾</button>
+            </div>
+
+            <div class="settings-content active" id="settingsChar1">
+                <div class="char-edit-card">
+                    <div class="char-edit-header">
+                        <span class="char-edit-emoji">🌿</span>
+                        <input type="text" class="char-edit-name-input" id="char1Name" placeholder="名前">
+                    </div>
+                    <div class="image-setup-item">
+                        <label>通常画像</label>
+                        <span class="status" id="statusChar1Normal">❌</span>
+                        <div class="file-input-wrapper"><span class="file-input-btn">選択</span><input type="file" accept="image/*" id="fileChar1Normal"></div>
+                    </div>
+                    <div class="image-setup-item">
+                        <label>完了時画像</label>
+                        <span class="status" id="statusChar1Complete">❌</span>
+                        <div class="file-input-wrapper"><span class="file-input-btn">選択</span><input type="file" accept="image/*" id="fileChar1Complete"></div>
+                    </div>
+                    <div class="char-edit-messages">
+                        <label>登録時セリフ（改行で複数）</label>
+                        <textarea id="char1RegisterMessages" placeholder="頑張ろうね！"></textarea>
+                        <label>完了時セリフ（改行で複数）</label>
+                        <textarea id="char1CompleteMessages" placeholder="よくやったね！"></textarea>
+                        <label>チャレンジ登録時セリフ</label>
+                        <textarea id="char1ChallengeRegisterMessage" placeholder="大きな目標だね！" style="min-height:40px;"></textarea>
+                        <label>チャレンジ達成時セリフ</label>
+                        <textarea id="char1ChallengeMessage" placeholder="おめでとう！" style="min-height:40px;"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-content" id="settingsChar2">
+                <div class="char-edit-card">
+                    <div class="char-edit-header">
+                        <span class="char-edit-emoji">🔥</span>
+                        <input type="text" class="char-edit-name-input" id="char2Name" placeholder="名前">
+                    </div>
+                    <div class="image-setup-item">
+                        <label>通常画像</label>
+                        <span class="status" id="statusChar2Normal">❌</span>
+                        <div class="file-input-wrapper"><span class="file-input-btn">選択</span><input type="file" accept="image/*" id="fileChar2Normal"></div>
+                    </div>
+                    <div class="image-setup-item">
+                        <label>完了時画像</label>
+                        <span class="status" id="statusChar2Complete">❌</span>
+                        <div class="file-input-wrapper"><span class="file-input-btn">選択</span><input type="file" accept="image/*" id="fileChar2Complete"></div>
+                    </div>
+                    <div class="char-edit-messages">
+                        <label>登録時セリフ（改行で複数）</label>
+                        <textarea id="char2RegisterMessages" placeholder="頑張ろうね！"></textarea>
+                        <label>完了時セリフ（改行で複数）</label>
+                        <textarea id="char2CompleteMessages" placeholder="よくやったね！"></textarea>
+                        <label>チャレンジ登録時セリフ</label>
+                        <textarea id="char2ChallengeRegisterMessage" placeholder="大きな目標だね！" style="min-height:40px;"></textarea>
+                        <label>チャレンジ達成時セリフ</label>
+                        <textarea id="char2ChallengeMessage" placeholder="おめでとう！" style="min-height:40px;"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-content" id="settingsChar3">
+                <div class="char-edit-card">
+                    <div class="char-edit-header">
+                        <span class="char-edit-emoji">💜</span>
+                        <input type="text" class="char-edit-name-input" id="char3Name" placeholder="名前">
+                    </div>
+                    <div class="image-setup-item">
+                        <label>通常画像</label>
+                        <span class="status" id="statusChar3Normal">❌</span>
+                        <div class="file-input-wrapper"><span class="file-input-btn">選択</span><input type="file" accept="image/*" id="fileChar3Normal"></div>
+                    </div>
+                    <div class="image-setup-item">
+                        <label>完了時画像</label>
+                        <span class="status" id="statusChar3Complete">❌</span>
+                        <div class="file-input-wrapper"><span class="file-input-btn">選択</span><input type="file" accept="image/*" id="fileChar3Complete"></div>
+                    </div>
+                    <div class="char-edit-messages">
+                        <label>登録時セリフ（改行で複数）</label>
+                        <textarea id="char3RegisterMessages" placeholder="頑張ろうね！"></textarea>
+                        <label>完了時セリフ（改行で複数）</label>
+                        <textarea id="char3CompleteMessages" placeholder="よくやったね！"></textarea>
+                        <label>チャレンジ登録時セリフ</label>
+                        <textarea id="char3ChallengeRegisterMessage" placeholder="大きな目標だね！" style="min-height:40px;"></textarea>
+                        <label>チャレンジ達成時セリフ</label>
+                        <textarea id="char3ChallengeMessage" placeholder="おめでとう！" style="min-height:40px;"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-content" id="settingsData">
+                <div class="char-edit-card">
+                    <div class="data-section-title">📦 データ管理</div>
+                    <p style="font-size: 0.8rem; opacity: 0.7; margin-bottom: 16px; line-height: 1.5;">
+                        バックアップを取っておくと、機種変更時やブラウザのデータ消去時にも復元できます。
+                    </p>
+                    <div class="data-buttons" style="margin-bottom: 12px;">
+                        <button class="data-btn export" id="exportBtn">📤 エクスポート</button>
+                        <button class="data-btn import" id="importBtn">
+                            📥 インポート
+                            <input type="file" accept="application/json,.json,text/plain,.txt,*/*" id="importFile">
+                        </button>
+                    </div>
+                    <div class="data-buttons">
+                        <button class="data-btn reset" id="resetBtn">🗑️ 全データ削除</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-buttons" style="margin-top: 16px;">
+                <button class="modal-btn cancel" id="closeSettingsBtn">閉じる</button>
+                <button class="modal-btn submit" id="saveSettingsBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="effect-container" id="effectContainer"></div>
+
+    <script>
+        // ===== IndexedDB設定 =====
+        const DB_NAME = 'kirameki_todo_db';
+        const DB_VERSION = 1;
+        let db = null;
+
+        const defaultCharConfig = {
+            char1: { 
+                name: 'セレン', emoji: '🌿', 
+                registerMessages: ['頑張りましょうね。', '一緒に取り組みましょう。'],
+                completeMessages: ['素晴らしいです。', 'よくやってくれました。'], 
+                challengeRegisterMessage: '大きな目標ですね。応援しています。',
+                challengeMessage: '大きな目標達成、おめでとうございます。' 
+            },
+            char2: { 
+                name: 'グリン', emoji: '🔥', 
+                registerMessages: ['よし、やるぞ！', '任せとけ！'],
+                completeMessages: ['よくやったな！', 'さすがだ！'], 
+                challengeRegisterMessage: '大きな目標だな！燃えてきた！',
+                challengeMessage: 'やり遂げたな！すごいぞ！' 
+            },
+            char3: { 
+                name: 'キャラ3', emoji: '💜', 
+                registerMessages: ['頑張ろう！'],
+                completeMessages: ['やったね！'], 
+                challengeRegisterMessage: '大きな目標だね！',
+                challengeMessage: 'おめでとう！' 
+            }
+        };
+
+        const defaultData = {
+            currentCharacter: 'char1',
+            characters: {
+                char1: { points: 0, todos: [], minis: [], challenges: [], history: [] },
+                char2: { points: 0, todos: [], minis: [], challenges: [], history: [] },
+                char3: { points: 0, todos: [], minis: [], challenges: [], history: [] }
+            }
+        };
+
+        const defaultImageData = {
+            char1Normal: null, char1Complete: null,
+            char2Normal: null, char2Complete: null,
+            char3Normal: null, char3Complete: null
+        };
+
+        const POINTS = { 
+            todo: { register: 10, complete: 20, bonus: 40 }, 
+            mini: { register: 20, complete: 50, bonus: 100 },
+            challenge: { register: 30, complete: 100, bonus: 200 } 
+        };
+
+        let appData = null, charConfig = null, imageData = null;
+        let currentModalType = 'todo', completeTimeout = null, isCompleteMode = false, currentListView = 'todos';
+        let touchStartX = 0, touchEndX = 0;
+
+        // ===== IndexedDB操作 =====
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    db = request.result;
+                    resolve(db);
+                };
+                
+                request.onupgradeneeded = (event) => {
+                    const database = event.target.result;
+                    if (!database.objectStoreNames.contains('appData')) {
+                        database.createObjectStore('appData', { keyPath: 'id' });
+                    }
+                    if (!database.objectStoreNames.contains('charConfig')) {
+                        database.createObjectStore('charConfig', { keyPath: 'id' });
+                    }
+                    if (!database.objectStoreNames.contains('images')) {
+                        database.createObjectStore('images', { keyPath: 'id' });
+                    }
+                };
+            });
+        }
+
+        function dbGet(storeName, key) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(storeName, 'readonly');
+                const store = transaction.objectStore(storeName);
+                const request = store.get(key);
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+            });
+        }
+
+        function dbPut(storeName, data) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(storeName, 'readwrite');
+                const store = transaction.objectStore(storeName);
+                const request = store.put(data);
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+            });
+        }
+
+        function dbClear(storeName) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(storeName, 'readwrite');
+                const store = transaction.objectStore(storeName);
+                const request = store.clear();
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve();
+            });
+        }
+
+        // ===== データ読み込み・保存 =====
+        async function loadAppData() {
+            try {
+                const saved = await dbGet('appData', 'main');
+                if (saved && saved.data) {
+                    const parsed = saved.data;
+                    ['char1', 'char2', 'char3'].forEach(c => {
+                        if (!parsed.characters[c]) parsed.characters[c] = { points: 0, todos: [], minis: [], challenges: [], history: [] };
+                        if (!parsed.characters[c].minis) parsed.characters[c].minis = [];
+                    });
+                    return parsed;
+                }
+            } catch(e) { console.error('loadAppData error:', e); }
+            return JSON.parse(JSON.stringify(defaultData));
+        }
+
+        async function saveAppData() {
+            try {
+                await dbPut('appData', { id: 'main', data: appData });
+            } catch(e) { 
+                console.error('saveAppData error:', e);
+                alert('データ保存に失敗しました');
+            }
+        }
+
+        async function loadCharConfig() {
+            try {
+                const saved = await dbGet('charConfig', 'main');
+                if (saved && saved.data) {
+                    const parsed = saved.data;
+                    return {
+                        char1: { ...defaultCharConfig.char1, ...parsed.char1 },
+                        char2: { ...defaultCharConfig.char2, ...parsed.char2 },
+                        char3: { ...defaultCharConfig.char3, ...parsed.char3 }
+                    };
+                }
+            } catch(e) { console.error('loadCharConfig error:', e); }
+            return JSON.parse(JSON.stringify(defaultCharConfig));
+        }
+
+        async function saveCharConfig() {
+            try {
+                await dbPut('charConfig', { id: 'main', data: charConfig });
+            } catch(e) { 
+                console.error('saveCharConfig error:', e);
+                alert('設定の保存に失敗しました');
+            }
+        }
+
+        async function loadImageData() {
+            try {
+                const saved = await dbGet('images', 'main');
+                if (saved && saved.data) {
+                    return { ...defaultImageData, ...saved.data };
+                }
+            } catch(e) { console.error('loadImageData error:', e); }
+            return { ...defaultImageData };
+        }
+
+        async function saveImageData() {
+            try {
+                await dbPut('images', { id: 'main', data: imageData });
+                return true;
+            } catch(e) { 
+                console.error('saveImageData error:', e);
+                alert('画像の保存に失敗しました');
+                return false;
+            }
+        }
+
+        const $ = id => document.getElementById(id);
+        function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
+        function isToday(dateStr) { return new Date(dateStr).toDateString() === new Date().toDateString(); }
+        function formatDate(dateStr) { const d = new Date(dateStr); return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`; }
+        function escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+        function getCurrentCharData() { return appData.characters[appData.currentCharacter]; }
+        function getCurrentConfig() { return charConfig[appData.currentCharacter]; }
+
+        function getTypeIcon(type) {
+            if (type === 'todo') return '📝';
+            if (type === 'mini') return '⭐';
+            if (type === 'challenge') return '🎯';
+            return '';
+        }
+
+        function getTypeLabel(type) {
+            if (type === 'todo') return '完了';
+            if (type === 'mini') return '完了';
+            if (type === 'challenge') return '達成!';
+            return '完了';
+        }
+
+        function updateUI() {
+            const charKey = appData.currentCharacter;
+            const charData = getCurrentCharData();
+            const config = getCurrentConfig();
+
+            $('pointsDisplay').textContent = `${charData.points} 🌟`;
+            $('fallbackEmoji').textContent = config.emoji;
+            $('fallbackName').textContent = config.name;
+
+            document.querySelectorAll('.char-dot').forEach(dot => {
+                dot.classList.toggle('active', dot.dataset.char === charKey);
+            });
+
+            $('tabChar1').textContent = charConfig.char1.name;
+            $('tabChar2').textContent = charConfig.char2.name;
+            $('tabChar3').textContent = charConfig.char3.name;
+
+            if (!isCompleteMode) updateCharacterImage(false);
+            renderTaskPreview();
+        }
+
+        function updateCharacterImage(isComplete) {
+            const charKey = appData.currentCharacter;
+            const imgKey = isComplete ? (charKey + 'Complete') : (charKey + 'Normal');
+            const src = imageData[imgKey];
+            const imgEl = $('characterImage');
+            const fallbackEl = $('characterFallback');
+
+            if (src && src.length > 100) {
+                imgEl.src = src;
+                imgEl.classList.remove('hidden');
+                fallbackEl.classList.add('hidden');
+                imgEl.classList.toggle('complete', isComplete);
+            } else {
+                imgEl.classList.add('hidden');
+                imgEl.src = '';
+                fallbackEl.classList.remove('hidden');
+                fallbackEl.style.animation = isComplete ? 'float 2s ease-in-out infinite' : 'none';
+            }
+        }
+
+        function updateAllImageStatus() {
+            ['char1Normal', 'char1Complete', 'char2Normal', 'char2Complete', 'char3Normal', 'char3Complete'].forEach(key => {
+                const el = $('status' + key.charAt(0).toUpperCase() + key.slice(1));
+                if (el) el.textContent = (imageData[key] && imageData[key].length > 100) ? '✅' : '❌';
+            });
+        }
+
+        function renderTaskPreview() {
+            const charData = getCurrentCharData();
+            const tasks = [
+                ...charData.todos.map(t => ({...t, type: 'todo'})), 
+                ...charData.minis.map(t => ({...t, type: 'mini'})),
+                ...charData.challenges.map(t => ({...t, type: 'challenge'}))
+            ].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 3);
+            
+            const container = $('taskPreview');
+            if (tasks.length === 0) { container.innerHTML = '<div class="empty-message">タスクがありません</div>'; return; }
+            container.innerHTML = tasks.map(task => `
+                <div class="task-preview-item">
+                    <div class="task-content">
+                        <div class="task-title">${getTypeIcon(task.type)} ${escapeHtml(task.title)}</div>
+                        <div class="task-meta"><span>${formatDate(task.createdAt)}</span>${isToday(task.createdAt) ? '<span class="bonus-badge">2倍!</span>' : ''}</div>
+                    </div>
+                    <button class="complete-btn" onclick="completeTask('${task.id}', '${task.type}', '${appData.currentCharacter}')">${getTypeLabel(task.type)}</button>
+                </div>
+            `).join('');
+        }
+
+        function renderFullList(type) {
+            currentListView = type;
+            const chars = ['char1', 'char2', 'char3'];
+            let html = '';
+            if (type === 'todos') {
+                $('fullListTitle').textContent = '📋 全タスク一覧';
+                chars.forEach(charKey => {
+                    const charData = appData.characters[charKey];
+                    const config = charConfig[charKey];
+                    const tasks = [
+                        ...charData.todos.map(t => ({...t, taskType: 'todo'})), 
+                        ...charData.minis.map(t => ({...t, taskType: 'mini'})),
+                        ...charData.challenges.map(t => ({...t, taskType: 'challenge'}))
+                    ].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    if (tasks.length > 0) {
+                        html += `<div class="char-section"><div class="char-section-title ${charKey}">${config.emoji} ${config.name}（${charData.points}🌟）</div>
+                            ${tasks.map(task => `<div class="task-item"><div class="task-content"><div class="task-title">${getTypeIcon(task.taskType)} ${escapeHtml(task.title)}</div>
+                            <div class="task-meta"><span>${formatDate(task.createdAt)}</span>${isToday(task.createdAt) ? '<span class="bonus-badge">2倍!</span>' : ''}</div></div>
+                            <button class="complete-btn ${charKey}-btn" onclick="completeTask('${task.id}', '${task.taskType}', '${charKey}')">${getTypeLabel(task.taskType)}</button></div>`).join('')}</div>`;
+                    }
+                });
+                if (!html) html = '<div class="empty-message">タスクがありません</div>';
+            } else {
+                $('fullListTitle').textContent = '📚 完了履歴';
+                chars.forEach(charKey => {
+                    const charData = appData.characters[charKey];
+                    const config = charConfig[charKey];
+                    const history = charData.history.slice().reverse();
+                    if (history.length > 0) {
+                        html += `<div class="char-section"><div class="char-section-title ${charKey}">${config.emoji} ${config.name}</div>
+                            ${history.map(item => `<div class="history-item"><div><div class="task-title">${getTypeIcon(item.type)} ${escapeHtml(item.title)}</div>
+                            <div class="task-meta">${formatDate(item.completedAt)}</div></div><div class="history-points ${charKey}">+${item.points}🌟 ${item.hasBonus ? '<span class="history-bonus">⭐</span>' : ''}</div></div>`).join('')}</div>`;
+                    }
+                });
+                if (!html) html = '<div class="empty-message">履歴がありません</div>';
+            }
+            $('fullListContent').innerHTML = html;
+            $('fullListView').classList.add('show');
+        }
+
+        function switchCharacter(direction) {
+            const order = ['char1', 'char2', 'char3'];
+            const currentIndex = order.indexOf(appData.currentCharacter);
+            let nextIndex;
+            if (direction === 'next') nextIndex = (currentIndex + 1) % 3;
+            else nextIndex = (currentIndex - 1 + 3) % 3;
+            appData.currentCharacter = order[nextIndex];
+            saveAppData();
+            clearTimeout(completeTimeout);
+            isCompleteMode = false;
+            document.body.className = appData.currentCharacter;
+            updateUI();
+        }
+
+        function openTaskModal(type) {
+            currentModalType = type;
+            $('tabTodo').classList.toggle('active', type === 'todo');
+            $('tabMini').classList.toggle('active', type === 'mini');
+            $('tabChallenge').classList.toggle('active', type === 'challenge');
+            updatePointsHint();
+            $('taskInput').value = '';
+            $('modalOverlay').classList.add('show');
+            setTimeout(() => $('taskInput').focus(), 100);
+        }
+
+        function updatePointsHint() {
+            const pts = POINTS[currentModalType];
+            $('pointsHint').textContent = `登録で +${pts.register}🌟 獲得！`;
+        }
+
+        function closeTaskModal() { $('modalOverlay').classList.remove('show'); }
+
+        function addTask() {
+            const title = $('taskInput').value.trim();
+            if (!title) return;
+            const charData = getCurrentCharData();
+            const config = getCurrentConfig();
+            const task = { id: generateId(), title, createdAt: new Date().toISOString() };
+            const points = POINTS[currentModalType].register;
+            
+            if (currentModalType === 'todo') charData.todos.push(task);
+            else if (currentModalType === 'mini') charData.minis.push(task);
+            else charData.challenges.push(task);
+            
+            charData.points += points;
+            saveAppData();
+            closeTaskModal();
+            updateUI();
+            showPointEffect(points);
+
+            let msg;
+            if (currentModalType === 'challenge') {
+                msg = config.challengeRegisterMessage || defaultCharConfig[appData.currentCharacter].challengeRegisterMessage;
+            } else {
+                const msgs = config.registerMessages || defaultCharConfig[appData.currentCharacter].registerMessages;
+                msg = msgs[Math.floor(Math.random() * msgs.length)];
+            }
+            showSpeechBubble(msg);
+        }
+
+        function completeTask(id, type, charKey) {
+            const charData = appData.characters[charKey];
+            let list;
+            if (type === 'todo') list = charData.todos;
+            else if (type === 'mini') list = charData.minis;
+            else list = charData.challenges;
+            
+            const index = list.findIndex(t => t.id === id);
+            if (index === -1) return;
+            const task = list[index];
+            const hasBonus = isToday(task.createdAt);
+            const points = hasBonus ? POINTS[type].bonus : POINTS[type].complete;
+            charData.history.push({ id: generateId(), title: task.title, type, points, hasBonus, completedAt: new Date().toISOString() });
+            list.splice(index, 1);
+            charData.points += points;
+            saveAppData();
+            if (charKey === appData.currentCharacter) showCompleteEffect(points, type);
+            else showPointEffect(points);
+            updateUI();
+            if ($('fullListView').classList.contains('show')) renderFullList(currentListView);
+        }
+
+        function openSettings() {
+            ['char1', 'char2', 'char3'].forEach(charKey => {
+                const config = charConfig[charKey];
+                $(charKey + 'Name').value = config.name;
+                $(charKey + 'RegisterMessages').value = (config.registerMessages || []).join('\n');
+                $(charKey + 'CompleteMessages').value = (config.completeMessages || []).join('\n');
+                $(charKey + 'ChallengeRegisterMessage').value = config.challengeRegisterMessage || '';
+                $(charKey + 'ChallengeMessage').value = config.challengeMessage || '';
+            });
+            updateAllImageStatus();
+            $('settingsOverlay').classList.add('show');
+        }
+
+        function closeSettings() { $('settingsOverlay').classList.remove('show'); }
+
+        function saveSettings() {
+            ['char1', 'char2', 'char3'].forEach(charKey => {
+                const def = defaultCharConfig[charKey];
+                charConfig[charKey].name = $(charKey + 'Name').value.trim() || def.name;
+                const regMsgs = $(charKey + 'RegisterMessages').value.split('\n').filter(m => m.trim());
+                if (regMsgs.length > 0) charConfig[charKey].registerMessages = regMsgs;
+                const compMsgs = $(charKey + 'CompleteMessages').value.split('\n').filter(m => m.trim());
+                if (compMsgs.length > 0) charConfig[charKey].completeMessages = compMsgs;
+                const chalRegMsg = $(charKey + 'ChallengeRegisterMessage').value.trim();
+                if (chalRegMsg) charConfig[charKey].challengeRegisterMessage = chalRegMsg;
+                const chalMsg = $(charKey + 'ChallengeMessage').value.trim();
+                if (chalMsg) charConfig[charKey].challengeMessage = chalMsg;
+            });
+            saveCharConfig();
+            updateUI();
+            closeSettings();
+        }
+
+        function switchSettingsTab(tabKey) {
+            ['char1', 'char2', 'char3', 'data'].forEach(c => {
+                const tabId = c === 'data' ? 'tabData' : ('tab' + c.charAt(0).toUpperCase() + c.slice(1));
+                const contentId = c === 'data' ? 'settingsData' : ('settings' + c.charAt(0).toUpperCase() + c.slice(1));
+                $(tabId).classList.toggle('active', c === tabKey);
+                $(contentId).classList.toggle('active', c === tabKey);
+            });
+        }
+
+        function handleImageUpload(key, fileInput) {
+            const file = fileInput.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const img = new Image();
+                img.onload = async function() {
+                    const canvas = document.createElement('canvas');
+                    const maxSize = 600;
+                    let w = img.width, h = img.height;
+                    if (w > maxSize || h > maxSize) {
+                        if (w > h) { h *= maxSize / w; w = maxSize; }
+                        else { w *= maxSize / h; h = maxSize; }
+                    }
+                    canvas.width = Math.round(w);
+                    canvas.height = Math.round(h);
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    let quality = 0.6;
+                    let dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    while (dataUrl.length > 200000 && quality > 0.3) {
+                        quality -= 0.1;
+                        dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    }
+                    
+                    imageData[key] = dataUrl;
+                    if (await saveImageData()) { 
+                        updateAllImageStatus(); 
+                        updateUI(); 
+                    } else {
+                        imageData[key] = null;
+                    }
+                };
+                img.src = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // ===== エクスポート/インポート =====
+        const CURRENT_VERSION = 4;
+
+        async function exportData() {
+            const exportObj = {
+                version: CURRENT_VERSION,
+                exportDate: new Date().toISOString(),
+                appData: appData,
+                charConfig: charConfig,
+                imageData: imageData
+            };
+            
+            const jsonStr = JSON.stringify(exportObj, null, 2);
+            const date = new Date();
+            const dateStr = `${date.getFullYear()}${String(date.getMonth()+1).padStart(2,'0')}${String(date.getDate()).padStart(2,'0')}`;
+            const fileName = `kirameki_backup_${dateStr}.json`;
+            
+            if (navigator.share) {
+                try {
+                    const file = new File([jsonStr], fileName, { type: 'application/json' });
+                    await navigator.share({ files: [file], title: fileName });
+                    alert('✅ バックアップを保存しました！\n\n「"ファイル"に保存」を選んだ場合は、ファイルアプリで確認できます。');
+                    return;
+                } catch (err) {
+                    if (err.name === 'AbortError') return;
+                }
+            }
+            
+            const textarea = document.createElement('textarea');
+            textarea.value = jsonStr;
+            textarea.style.cssText = 'position:fixed;top:10%;left:5%;width:90%;height:60%;z-index:9999;font-size:12px;';
+            document.body.appendChild(textarea);
+            textarea.select();
+            alert('📋 バックアップデータを表示しました\n\n1. 全て選択してコピー\n2. メモアプリに貼り付け\n3. 「' + fileName + '」として保存\n\n画面タップで閉じます');
+            textarea.addEventListener('click', () => document.body.removeChild(textarea));
+            setTimeout(() => { if (document.body.contains(textarea)) document.body.removeChild(textarea); }, 60000);
+        }
+
+        async function importData(file) {
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    
+                    if (!imported.appData && !imported.charConfig) {
+                        throw new Error('無効なバックアップファイルです');
+                    }
+                    
+                    const importVersion = imported.version || 1;
+                    let confirmMsg = '⚠️ 現在のデータを上書きしますか？\n\n（現在のデータは失われます）';
+                    if (importVersion < CURRENT_VERSION) {
+                        confirmMsg = `⚠️ 古いバージョン(v${importVersion})のバックアップです。\n\n現在のバージョン(v${CURRENT_VERSION})に変換して復元します。\n\n続行しますか？`;
+                    }
+                    if (!confirm(confirmMsg)) return;
+                    
+                    // マイグレーション
+                    let importedAppData = imported.appData || JSON.parse(JSON.stringify(defaultData));
+                    let importedCharConfig = imported.charConfig || JSON.parse(JSON.stringify(defaultCharConfig));
+                    let importedImageData = imported.imageData || {};
+                    
+                    if (importVersion < 4) {
+                        ['char1', 'char2', 'char3'].forEach(charKey => {
+                            if (importedCharConfig[charKey]) {
+                                const cfg = importedCharConfig[charKey];
+                                if (cfg.todoRegisterMessages) {
+                                    cfg.registerMessages = cfg.todoRegisterMessages;
+                                    delete cfg.todoRegisterMessages;
+                                }
+                                if (cfg.todoMessages) {
+                                    cfg.completeMessages = cfg.todoMessages;
+                                    delete cfg.todoMessages;
+                                }
+                            }
+                            if (importedAppData.characters[charKey] && !importedAppData.characters[charKey].minis) {
+                                importedAppData.characters[charKey].minis = [];
+                            }
+                        });
+                    }
+                    
+                    ['char1', 'char2', 'char3'].forEach(charKey => {
+                        if (!importedAppData.characters[charKey]) {
+                            importedAppData.characters[charKey] = { points: 0, todos: [], minis: [], challenges: [], history: [] };
+                        }
+                        const charData = importedAppData.characters[charKey];
+                        if (charData.points === undefined) charData.points = 0;
+                        if (!charData.todos) charData.todos = [];
+                        if (!charData.minis) charData.minis = [];
+                        if (!charData.challenges) charData.challenges = [];
+                        if (!charData.history) charData.history = [];
+                        
+                        if (!importedCharConfig[charKey]) {
+                            importedCharConfig[charKey] = { ...defaultCharConfig[charKey] };
+                        } else {
+                            const imp = importedCharConfig[charKey];
+                            importedCharConfig[charKey] = {
+                                name: imp.name || defaultCharConfig[charKey].name,
+                                emoji: imp.emoji || defaultCharConfig[charKey].emoji,
+                                registerMessages: imp.registerMessages || defaultCharConfig[charKey].registerMessages,
+                                completeMessages: imp.completeMessages || defaultCharConfig[charKey].completeMessages,
+                                challengeRegisterMessage: imp.challengeRegisterMessage || defaultCharConfig[charKey].challengeRegisterMessage,
+                                challengeMessage: imp.challengeMessage || defaultCharConfig[charKey].challengeMessage
+                            };
+                        }
+                    });
+                    
+                    appData = importedAppData;
+                    charConfig = importedCharConfig;
+                    imageData = { ...defaultImageData, ...importedImageData };
+                    
+                    await saveAppData();
+                    await saveCharConfig();
+                    await saveImageData();
+                    
+                    document.body.className = appData.currentCharacter;
+                    updateUI();
+                    updateAllImageStatus();
+                    
+                    let successMsg = '✅ データを復元しました！';
+                    if (importVersion < CURRENT_VERSION) {
+                        successMsg += `\n\n(v${importVersion} → v${CURRENT_VERSION} に変換しました)`;
+                    }
+                    alert(successMsg);
+                    
+                } catch (err) {
+                    alert('❌ インポートに失敗しました\n\n' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        async function resetAllData() {
+            if (!confirm('⚠️ 本当にすべてのデータを削除しますか？\n\nこの操作は取り消せません！')) return;
+            if (!confirm('⚠️ 最終確認\n\n本当に削除してよろしいですか？')) return;
+            
+            await dbClear('appData');
+            await dbClear('charConfig');
+            await dbClear('images');
+            
+            appData = JSON.parse(JSON.stringify(defaultData));
+            charConfig = JSON.parse(JSON.stringify(defaultCharConfig));
+            imageData = { ...defaultImageData };
+            
+            document.body.className = 'char1';
+            updateUI();
+            updateAllImageStatus();
+            closeSettings();
+            
+            alert('✅ すべてのデータを削除しました');
+        }
+
+        function showPointEffect(points) {
+            const container = $('effectContainer');
+            const popup = document.createElement('div');
+            popup.className = 'point-popup';
+            popup.textContent = `+${points}🌟`;
+            container.appendChild(popup);
+            for (let i = 0; i < 10; i++) {
+                const sparkle = document.createElement('div');
+                sparkle.className = 'sparkle';
+                sparkle.textContent = '✨';
+                sparkle.style.left = '50%';
+                sparkle.style.top = '35%';
+                const angle = (i / 10) * Math.PI * 2;
+                const dist = 100 + Math.random() * 50;
+                sparkle.style.setProperty('--tx', `${Math.cos(angle) * dist}px`);
+                sparkle.style.setProperty('--ty', `${Math.sin(angle) * dist}px`);
+                container.appendChild(sparkle);
+            }
+            setTimeout(() => { container.innerHTML = ''; }, 1500);
+        }
+
+        function showSpeechBubble(msg) {
+            const bubble = $('speechBubble');
+            bubble.textContent = msg;
+            bubble.classList.add('show');
+            clearTimeout(completeTimeout);
+            completeTimeout = setTimeout(() => { bubble.classList.remove('show'); }, 3000);
+        }
+
+        function showCompleteEffect(points, type) {
+            const config = getCurrentConfig();
+            showPointEffect(points);
+            isCompleteMode = true;
+            updateCharacterImage(true);
+            
+            let msg;
+            if (type === 'challenge') {
+                msg = config.challengeMessage;
+            } else {
+                const msgs = config.completeMessages || defaultCharConfig[appData.currentCharacter].completeMessages;
+                msg = msgs[Math.floor(Math.random() * msgs.length)];
+            }
+            showSpeechBubble(msg);
+            
+            clearTimeout(completeTimeout);
+            completeTimeout = setTimeout(() => { 
+                isCompleteMode = false; 
+                updateCharacterImage(false); 
+                $('speechBubble').classList.remove('show'); 
+            }, 3000);
+        }
+
+        function handleSwipe() {
+            const diff = touchStartX - touchEndX;
+            if (Math.abs(diff) > 50) {
+                if (diff > 0) switchCharacter('next');
+                else switchCharacter('prev');
+            }
+        }
+
+        function initEventListeners() {
+            $('settingsBtn').addEventListener('click', openSettings);
+            $('addTodoBtn').addEventListener('click', () => openTaskModal('todo'));
+            $('addMiniBtn').addEventListener('click', () => openTaskModal('mini'));
+            $('addChallengeBtn').addEventListener('click', () => openTaskModal('challenge'));
+            $('viewTodosBtn').addEventListener('click', () => renderFullList('todos'));
+            $('historyBtn').addEventListener('click', () => renderFullList('history'));
+            $('closeListBtn').addEventListener('click', () => $('fullListView').classList.remove('show'));
+            $('cancelBtn').addEventListener('click', closeTaskModal);
+            $('submitBtn').addEventListener('click', addTask);
+            
+            $('tabTodo').addEventListener('click', () => { currentModalType = 'todo'; $('tabTodo').classList.add('active'); $('tabMini').classList.remove('active'); $('tabChallenge').classList.remove('active'); updatePointsHint(); });
+            $('tabMini').addEventListener('click', () => { currentModalType = 'mini'; $('tabMini').classList.add('active'); $('tabTodo').classList.remove('active'); $('tabChallenge').classList.remove('active'); updatePointsHint(); });
+            $('tabChallenge').addEventListener('click', () => { currentModalType = 'challenge'; $('tabChallenge').classList.add('active'); $('tabTodo').classList.remove('active'); $('tabMini').classList.remove('active'); updatePointsHint(); });
+            
+            $('modalOverlay').addEventListener('click', e => { if (e.target.id === 'modalOverlay') closeTaskModal(); });
+            $('taskInput').addEventListener('keypress', e => { if (e.key === 'Enter') addTask(); });
+            $('closeSettingsBtn').addEventListener('click', closeSettings);
+            $('saveSettingsBtn').addEventListener('click', saveSettings);
+            $('settingsOverlay').addEventListener('click', e => { if (e.target.id === 'settingsOverlay') closeSettings(); });
+            
+            $('tabChar1').addEventListener('click', () => switchSettingsTab('char1'));
+            $('tabChar2').addEventListener('click', () => switchSettingsTab('char2'));
+            $('tabChar3').addEventListener('click', () => switchSettingsTab('char3'));
+            $('tabData').addEventListener('click', () => switchSettingsTab('data'));
+            
+            $('fileChar1Normal').addEventListener('change', function() { handleImageUpload('char1Normal', this); });
+            $('fileChar1Complete').addEventListener('change', function() { handleImageUpload('char1Complete', this); });
+            $('fileChar2Normal').addEventListener('change', function() { handleImageUpload('char2Normal', this); });
+            $('fileChar2Complete').addEventListener('change', function() { handleImageUpload('char2Complete', this); });
+            $('fileChar3Normal').addEventListener('change', function() { handleImageUpload('char3Normal', this); });
+            $('fileChar3Complete').addEventListener('change', function() { handleImageUpload('char3Complete', this); });
+            $('characterFallback').addEventListener('click', openSettings);
+
+            $('exportBtn').addEventListener('click', exportData);
+            $('importFile').addEventListener('change', function() { importData(this.files[0]); this.value = ''; });
+            $('resetBtn').addEventListener('click', resetAllData);
+
+            const area = $('characterArea');
+            area.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, { passive: true });
+            area.addEventListener('touchend', e => { touchEndX = e.changedTouches[0].screenX; handleSwipe(); }, { passive: true });
+
+            document.querySelectorAll('.char-dot').forEach(dot => {
+                dot.addEventListener('click', () => {
+                    appData.currentCharacter = dot.dataset.char;
+                    saveAppData();
+                    clearTimeout(completeTimeout);
+                    isCompleteMode = false;
+                    document.body.className = appData.currentCharacter;
+                    updateUI();
+                });
+            });
+        }
+
+        async function init() {
+            try {
+                await openDB();
+                appData = await loadAppData();
+                charConfig = await loadCharConfig();
+                imageData = await loadImageData();
+                document.body.className = appData.currentCharacter;
+                initEventListeners();
+                updateUI();
+                updateAllImageStatus();
+                $('loadingOverlay').classList.add('hidden');
+            } catch (err) {
+                console.error('Init error:', err);
+                alert('アプリの初期化に失敗しました。ページを再読み込みしてください。');
+            }
+        }
+
+        // Service Worker登録
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed:', err));
+        }
+
+        init();
+    </script>
+</body>
+</html>
