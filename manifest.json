@@ -1,0 +1,23 @@
+{
+  "name": "Kirameki TODO",
+  "short_name": "Kirameki",
+  "description": "キャラクターと一緒にタスク管理",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1a3318",
+  "theme_color": "#1a3318",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
